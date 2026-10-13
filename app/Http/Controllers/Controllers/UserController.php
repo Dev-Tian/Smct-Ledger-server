@@ -35,7 +35,7 @@ class UserController extends Controller
         }
 
         $credentials = [
-            'email'     =>  !filter_var($validate['email'], FILTER_VALIDATE_EMAIL) ? $validate['email'] : $user->name,
+            'email'     =>  filter_var($validate['email'], FILTER_VALIDATE_EMAIL) ? $validate['email'] : $user->name,
             'password'  =>  $validate['password']
         ];
 
@@ -45,7 +45,7 @@ class UserController extends Controller
                 [
                     'message'     => 'Invalidate Credentials'
                 ]
-                ,402
+                ,400
             );
         }
 
