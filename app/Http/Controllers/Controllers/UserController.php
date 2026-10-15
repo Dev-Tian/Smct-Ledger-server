@@ -76,7 +76,7 @@ class UserController extends Controller
         $role = $request->input('role');
         $branch_code = $request->input('branch_code');
 
-        $branchCode = User::groupBy('branch_code')->get(['branch_code']);
+        $branchCodes = User::groupBy('branch_code')->get(['branch_code']);
         $users = User::with(
                         [
                             'roles' => fn($q) => $q->select(['name'])
@@ -91,7 +91,7 @@ class UserController extends Controller
             [
                 'message'       =>  'List of Users',
                 'users'         =>  $users,
-                'branch_code'   =>  $branchCode
+                'branch_code'   =>  $branchCodes
             ]
         );
     }
