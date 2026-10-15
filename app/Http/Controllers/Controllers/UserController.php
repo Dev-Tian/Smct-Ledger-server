@@ -146,7 +146,7 @@ class UserController extends Controller
     {
         $user = $user->load(
             [
-                'role'  => fn($q) => $q->select(['id', 'name'])
+                'roles'  => fn($q) => $q->select(['id', 'name'])
             ]
         );
 
