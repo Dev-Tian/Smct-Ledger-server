@@ -107,24 +107,27 @@ class UserController extends Controller
             ]
         );
 
-        $user = User::create(
-            [
-                'name'          =>  $validated['name'],
-                'code'          =>  $validated['code'],
-                'email'         =>  $validated['email'] ?: null,
-                'branch_code'   =>  $validated['branch_code'],
-                'password'      =>  $validated['password']
-            ]
-        );
+        DB::transaction(function() use ($validated)
+        {
+            $user = User::create(
+                [
+                    'name'          =>  $validated['name'],
+                    'code'          =>  $validated['code'],
+                    'email'         =>  $validated['email'] ?: null,
+                    'branch_code'   =>  $validated['branch_code'],
+                    'password'      =>  $validated['password']
+                ]
+            );
 
-        $user->assignRole(RoleNames::EMPLOYEE->value);
+            $user->assignRole(RoleNames::EMPLOYEE->value);
 
-        return response()->json(
-            [
-                'message'       =>  'User successfully added'
-            ]
-            ,200
-        );
+            return response()->json(
+                [
+                    'message'       =>  'User successfully added'
+                ]
+                ,200
+            );
+        });
     }
 
     /**
