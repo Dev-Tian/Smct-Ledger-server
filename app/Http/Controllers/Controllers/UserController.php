@@ -67,7 +67,7 @@ class UserController extends Controller
                 'message'       =>  'User Login Successful'
             ]
         );
-    }
+            }
 
     public function index(Request $request)
     {
@@ -78,8 +78,8 @@ class UserController extends Controller
 
         $branchCodes = User::groupBy('branch_code')->get(['branch_code']);
         $users = User::with(
-                        [
-                            'roles' => fn($q) => $q->select(['name'])
+                            [
+                                'roles' => fn($q) => $q->select(['name'])
                             ]
                         )
                     ->search($search)
