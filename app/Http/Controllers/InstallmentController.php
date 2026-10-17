@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controller;
-use App\Imports\PreviewImport;
 use App\Models\Installment;
+use App\Models\Log;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Auth;
 
 class InstallmentController extends Controller
 {
@@ -32,12 +31,137 @@ class InstallmentController extends Controller
      */
     public function store(Request $request)
     {
+        $request->validate(
+            [
+                'rows'  => ['required', 'array']
+            ],
+            [
+                'rows.*.sales_order_no.required'    =>  'SO number is required for each accounts.PLease check the uploaded file'
+            ]
+        );
 
+        $data = $request->rows;
+        $missingRows = [];
+        $installments = [];
+
+            // 'location',
+            // 'first_due_date',
+            // 'is_rebated',
+            // 'item',
+
+        $requiredFields = [
+            'internal_id',
+            'customer_name',
+            'date_of_purchase',
+            'term',
+            'monthly_installment',
+            'monthly_principal',
+            'monthly_interest',
+            'total_accounts_receivable',
+            'down_payment',
+            'financed_amount',
+        ];
+
+        foreach ($data as $item) {
+            $dataMissing = [];
+
+            foreach ($requiredFields as $field) {
+                if (empty($item[$field])) {
+                    $dataMissing[] = $field;
+                }
+            }
+
+            if (!empty($dataMissing)) {
+                $fields = implode(', ', $dataMissing);
+
+                $missingRows[] = "Unable to generate an installment for {$item['sales_order_no']} due to missing required fields: {$fields}.";
+            } else {
+
+                // $location = Location::firstOrCreate(
+                //     [
+                //         'location_name'     =>  $item['location']
+                //     ],
+                //     [
+                //         'location_name'     =>  $item['location']
+                //     ]
+                // );
+
+                $soNumber = str_replace('Sales Order #','', $item['sales_order_no']);
+                $isLedgerExist = Installment::where(
+                                    fn($q)
+                                    =>
+                                    $q->where('so_number', $soNumber)
+                                    ->where('customer_name', $item['customer_name'])
+                                )->exists();
+
+                $is_rebated = false;
+                // if($item['is_rebated'] == 'no')
+                // {
+                //     $is_rebated = false;
+                // }
+                // if($item['is_rebated'] == 'yes')
+                // {
+                //     $is_rebated = true;
+                // }
+
+                if(!$isLedgerExist){
+                    $installments[] = [
+                        'location_id'                   =>  1,
+                        'internal_id'                   =>  $item['internal_id'],
+                        'customer_name'                 =>  $item['customer_name'],
+                        'so_number'                     =>  str_replace('Sales Order #','', $item['sales_order_no']),
+                        'purchase_date'                 =>  $item['date_of_purchase'],
+                        'first_due_date'                =>  now(),
+                        'term'                          =>  $item['term'],
+                        'monthly_installment'           =>  $item['monthly_installment'],
+                        'monthly_principal'             =>  $item['monthly_principal'],
+                        'monthly_interest'              =>  $item['monthly_interest'],
+                        'is_rebated'                    =>  $is_rebated,
+                        'item'                          =>  'test_item',
+                        'total_accounts_receivable'     =>  $item['total_accounts_receivable'],
+                        'downpayment'                   =>  $item['down_payment'],
+                        'financed_amount'               =>  $item['financed_amount'],
+                        'created_at'                    => now(),
+                        'updated_at'                    => now(),
+                    ];
+                }
+            }
+        }
+
+
+        if(!empty($installments)){
+            Installment::insert($installments);
+        }
+
+        $logInfo = [];
+        if(!empty($missingRows))
+        {
+            foreach($missingRows as $rowsItem)
+            {
+                $logInfo[] = [
+                    'info'  =>  $rowsItem,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+            }
+        }
+
+        if(!empty($logInfo))
+        {
+            Log::insert($logInfo);
+        }
+
+        Log::create(
+            [
+                'info'  =>  Auth::user()->name . ' uploaded an installment file for processing.'
+            ]
+        );
+    
         return response()->json(
             [
-                'test'  => 'test'
+                'message' => 'Installment generation completed successfully.'
             ]
-            ,200
+            , 200
         );
     }
 
