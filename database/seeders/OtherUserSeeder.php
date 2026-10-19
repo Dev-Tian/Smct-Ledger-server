@@ -1720,11 +1720,12 @@ class OtherUserSeeder extends Seeder
                     ]
                 ];
 
-        collect($users)->each( function ($userData) {
-                $user = User::create($userData);
-                $user->assignRole(RoleNames::EMPLOYEE->value);
-            }
-        );
+            collect($users)->chunk(100)->each(function ($chunk) {
+                $chunk->each(function ($userData) {
+                    $user = User::create($userData);
+                    $user->assignRole(RoleNames::EMPLOYEE->value);
+                });
+            });
 
     }
 }
