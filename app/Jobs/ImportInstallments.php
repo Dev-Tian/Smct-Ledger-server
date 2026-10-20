@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\LogEvent;
 use App\Models\Installment;
 use App\Models\InstallmentLedger;
 use App\Models\Location;
@@ -9,6 +10,7 @@ use App\Models\Log;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -157,10 +159,20 @@ class ImportInstallments implements ShouldQueue
             foreach($missingRows as $rowsItem)
             {
                 $logInfo[] = [
-                    'info'  =>  $rowsItem,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'info'          =>  $rowsItem,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
                 ];
+
+                event(
+                    new LogEvent
+                    (
+                        Auth::id(),
+                        $this->importId,
+                        $rowsItem,
+                        now()->toISOString()
+                    )
+                );
             }
         }
 
@@ -169,16 +181,27 @@ class ImportInstallments implements ShouldQueue
             Log::insert($logInfo);
         }
 
-        Log::create(
-            [
-                'unique_id' =>  $this->importId,
-                'info' => sprintf(
+        $info = sprintf(
                     "File uploaded: %s \nBatch: %s successfully \nUploader: %s",
                     $this->importId,
                     $this->batch,
                     $this->username
-                ),
+                );
+        Log::create(
+            [
+                'unique_id' =>  $this->importId,
+                'info' => $info,
             ]
+        );
+
+        event(
+            new LogEvent
+            (
+                Auth::id(),
+                $this->importId,
+                $info,
+                now()->toISOString()
+            )
         );
     }
 
