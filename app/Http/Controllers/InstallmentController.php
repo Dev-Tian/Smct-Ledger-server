@@ -5,14 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Controller;
 use App\Jobs\ImportInstallments;
 use App\Models\Installment;
-use App\Models\InstallmentLedger;
-use App\Models\Location;
-use App\Models\Log;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Bus;
 
 class InstallmentController extends Controller
 {
@@ -47,10 +42,16 @@ class InstallmentController extends Controller
             ]
         );
 
-        foreach(array_chunk($request->rows, 500) as $chunk)
-        {
-            ImportInstallments::dispatch($chunk, Auth::user()->name);
+        $jobs = [];
+
+        foreach (array_chunk($request->rows, 500) as $chunk) {
+            $jobs[] = new ImportInstallments($chunk, Auth::user()->name);
         }
+
+        $batch = Bus::batch($jobs)
+            ->name('Installment Import')
+            ->allowFailures()
+            ->dispatch();
 
         return response()->json(
             [
@@ -64,6 +65,7 @@ class InstallmentController extends Controller
      * Display the specified resource.
      */
     public function show(Installment $installment)
+
     {
         //
     }

@@ -7,13 +7,15 @@ use App\Models\InstallmentLedger;
 use App\Models\Location;
 use App\Models\Log;
 use Carbon\Carbon;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ImportInstallments implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, Batchable;
 
     /**
      * Create a new job instance.
@@ -171,5 +173,17 @@ class ImportInstallments implements ShouldQueue
                 'info'  =>  $this->username . ' uploaded an installment file for processing.'
             ]
         );
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        Log::create([
+            'info' => sprintf(
+                'Installment import job failed. Batch ID: %s. User: %s. Error: %s',
+                $this->batchId ?? 'N/A',
+                $this->username,
+                $exception?->getMessage() ?? 'Unknown error'
+            ),
+        ]);
     }
 }
