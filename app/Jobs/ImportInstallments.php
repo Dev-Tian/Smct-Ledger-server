@@ -7,7 +7,6 @@ use App\Models\InstallmentLedger;
 use App\Models\Location;
 use App\Models\Log;
 use Carbon\Carbon;
-use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -15,15 +14,17 @@ use Throwable;
 
 class ImportInstallments implements ShouldQueue
 {
-    use Queueable, Batchable;
+    use Queueable;
 
     /**
      * Create a new job instance.
      */
     public function __construct
     (
+        public string $batch,
         public array $data,
-        public string $username
+        public string $username,
+        public string $importId
     )
     {
         //
@@ -142,9 +143,9 @@ class ImportInstallments implements ShouldQueue
                         }
                     }
 
-                    if(!empty($ledgerData))
+                    foreach (array_chunk($ledgerData, 500) as $ledgerChunk)
                     {
-                        InstallmentLedger::insert($ledgerData);
+                        InstallmentLedger::insert($ledgerChunk);
                     }
                 }
             );
@@ -170,20 +171,30 @@ class ImportInstallments implements ShouldQueue
 
         Log::create(
             [
-                'info'  =>  $this->username . ' uploaded an installment file for processing.'
+                'unique_id' =>  $this->importId,
+                'info' => sprintf(
+                    "File uploaded: %s \nBatch: %s successfully \nUploader: %s",
+                    $this->importId,
+                    $this->batch,
+                    $this->username
+                ),
             ]
         );
     }
 
     public function failed(?Throwable $exception): void
     {
-        Log::create([
-            'info' => sprintf(
-                'Installment import job failed. Batch ID: %s. User: %s. Error: %s',
-                $this->batchId ?? 'N/A',
-                $this->username,
-                $exception?->getMessage() ?? 'Unknown error'
-            ),
-        ]);
+        Log::create(
+            [
+                'unique_id' => $this->importId,
+                 'info' => sprintf(
+                        "File upload failed: %s\nBatch: %s failed\nUploader: %s\nError: %s",
+                        $this->importId,
+                        $this->batch,
+                        $this->username,
+                        $exception?->getMessage() ?? 'Unknown error'
+                    )
+            ]
+        );
     }
 }

@@ -7,7 +7,8 @@ use App\Jobs\ImportInstallments;
 use App\Models\Installment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
+
 
 class InstallmentController extends Controller
 {
@@ -42,16 +43,25 @@ class InstallmentController extends Controller
             ]
         );
 
-        $jobs = [];
+        $importId = (string) Str::random(5);
 
-        foreach (array_chunk($request->rows, 500) as $chunk) {
-            $jobs[] = new ImportInstallments($chunk, Auth::user()->name);
+        $chunks = array_chunk($request->rows, 500);
+
+        foreach ($chunks as $index => $chunk) {
+            $batchNumber = $index + 1;
+
+            $startRow = ($index * 500) + 1;
+            $endRow = $startRow + count($chunk) - 1;
+
+            $batch = "{$batchNumber} [{$startRow}-{$endRow}]";
+
+            ImportInstallments::dispatch(
+                $batch,
+                $chunk,
+                Auth::user()->name,
+                $importId
+            );
         }
-
-        $batch = Bus::batch($jobs)
-            ->name('Installment Import')
-            ->allowFailures()
-            ->dispatch();
 
         return response()->json(
             [
@@ -65,7 +75,6 @@ class InstallmentController extends Controller
      * Display the specified resource.
      */
     public function show(Installment $installment)
-
     {
         //
     }
