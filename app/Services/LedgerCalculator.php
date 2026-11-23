@@ -86,20 +86,33 @@ class LedgerCalculator
             // Cash nga nahibilin: mao ra kini ang makabayad sa penalty (dili mabayran sa rebate)
             $cashLeft   = $amount;
 
-            // REBATE RULE: ma-credit lang kung mabayran ug tibuok ang tanang due hangtod sa current due
-            // (monthly + penalty, cash + rebate). Kung kulang, walay rebate niining payment.
+            // REBATE RULE: ma-credit lang kung:
+            //  1) naay current due nga on or before pa ang due date sa petsa sa payment, ug
+            //  2) mabayran ug tibuok ang tanang due hangtod sa current due:
+            //     penalty = cash ra, monthly = cash + rebate
             $rebTarget = 0;   // installment no. nga makakuha sa rebate (current due)
             if ($rebateLeft > 0) {
-                $rebTarget = $this->rebateTarget($inst, $paidAt);
-                $pending   = 0.0;   // total nga kinahanglan bayran hangtod sa current due
-                foreach ($inst as $k => $x) {
-                    if ($k > $rebTarget) break;
-                    $u  = max(0.0, $due - $x['paid']);
-                    $monthsLateAtPayment  = max(0, $this->monthsBetween($x['due_date'], $paidAt));
-                    $np = $this->penalty($u, $penaltyRate) * max(0, $monthsLateAtPayment - $x['months_late']);
-                    $pending += $u + max(0.0, $x['pen_accrued'] - $x['pen_paid'] + $np);
+                $target = $this->rebateTarget($inst, $paidAt, $due);
+
+                if ($target === null) {
+                    $rebateLeft = 0.0;   // walay eligible nga current due
+                } else {
+                    $rebTarget      = $target;
+                    $pendingMonthly = 0.0;
+                    $pendingPen     = 0.0;
+                    foreach ($inst as $k => $x) {
+                        if ($k > $rebTarget) break;
+                        $u  = max(0.0, $due - $x['paid']);
+                        $monthsLateAtPayment = max(0, $this->monthsBetween($x['due_date'], $paidAt));
+                        $np = $this->penalty($u, $penaltyRate) * max(0, $monthsLateAtPayment - $x['months_late']);
+                        $pendingMonthly += $u;
+                        $pendingPen     += max(0.0, $x['pen_accrued'] - $x['pen_paid'] + $np);
+                    }
+                    if (round($amount, 2) < round($pendingPen, 2)
+                        || round($amount + $rebateLeft, 2) < round($pendingMonthly + $pendingPen, 2)) {
+                        $rebateLeft = 0.0;   // kulang -> walay rebate
+                    }
                 }
-                if ($amount + $rebateLeft < $pending) $rebateLeft = 0.0;   // kulang -> walay rebate
             }
 
             // Resulta niining payment (mapuno sa ubos)
@@ -293,7 +306,7 @@ class LedgerCalculator
             'current_balance'   => $balance,                    // Current Balance
             'total_balance_due' => $balance,                    // Total Balance Due (parehas ra)
             'total_amount_due'  => round(max(0.0, $amountDue), 2),   // Total Amount Due
-            'total_payments'    => round((float) $payments->sum('amount'), 2),  // cash lang, walay rebate
+            'total_payments'    => round($cumPaid, 2),   // total Monthly Installment Paid (apil ang rebate)
             'total_penalty'     => round($cumPen, 2),           // tanang penalty
             // Unrecovered Cost = Financed Amount - Principal Paid (dili mubu sa 0)
             'unrecovered_cost'  => round(max(0.0, (float) ($installment->financed_amount ?? 0) - $totalPrinPaid), 2),
@@ -307,22 +320,19 @@ class LedgerCalculator
 
     /**
      * Installment no. sa "current due" nga makakuha sa rebate:
-     * 1) ang installment nga ang due date naa sa bulan sa payment (pananglitan due Oct 3, payment Oct 2),
-     * 2) kung wala, ang sunod nga due date human sa payment,
-     * 3) kung wala gihapon, ang katapusang installment.
+     * ang pinakaunang installment nga:
+     *   1) ang due date kay on or before sa petsa sa payment, ug
+     *   2) naay unpaid nga monthly (kung bayad na, laktaw).
+     * Kung walay ingon niana, null (walay rebate).
      */
-    private function rebateTarget(array $inst, Carbon $paidAt): int
+    private function rebateTarget(array $inst, Carbon $paidAt, float $due): ?int
     {
-        $upcoming = null;
         foreach ($inst as $n => $x) {
-            if ($x['due_date']->year === $paidAt->year && $x['due_date']->month === $paidAt->month) {
+            if ($x['due_date']->gte($paidAt) && round($due - $x['paid'], 2) > 0) {
                 return $n;
             }
-            if ($upcoming === null && $x['due_date']->gt($paidAt)) {
-                $upcoming = $n;
-            }
         }
-        return $upcoming ?? array_key_last($inst);
+        return null;
     }
 
     /**
