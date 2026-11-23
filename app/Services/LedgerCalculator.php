@@ -306,7 +306,7 @@ class LedgerCalculator
             'current_balance'   => $balance,                    // Current Balance
             'total_balance_due' => $balance,                    // Total Balance Due (parehas ra)
             'total_amount_due'  => round(max(0.0, $amountDue), 2),   // Total Amount Due
-            'total_payments'    => round((float) $payments->sum('amount'), 2),  // cash lang, walay rebate
+            'total_payments'    => round($cumPaid, 2),   // total Monthly Installment Paid (apil ang rebate)
             'total_penalty'     => round($cumPen, 2),           // tanang penalty
             // Unrecovered Cost = Financed Amount - Principal Paid (dili mubu sa 0)
             'unrecovered_cost'  => round(max(0.0, (float) ($installment->financed_amount ?? 0) - $totalPrinPaid), 2),
