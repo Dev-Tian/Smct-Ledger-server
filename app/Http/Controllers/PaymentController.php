@@ -45,7 +45,9 @@ class PaymentController
                             'edited_by',
                             'is_void',
                             'reasonToVoid',
-                            'remarks'
+                            'remarks',
+                            'void_date',
+                            'edited_date'
                         ]
                     );
 
@@ -161,6 +163,7 @@ class PaymentController
 
         $payment->update(
             [
+                'edited_by'             =>  Auth::id(),
                 'location_id'           =>  $validated['locationId'],
                 'installment_id'        =>  $validated['installmentId'],
                 'payment_date'          =>  $validated['payment_date'],
@@ -171,7 +174,8 @@ class PaymentController
                 'memo_description'      =>  $validated['memo_description'] ?: $payment->memo_description,
                 'invoice_number'        =>  $validated['invoice_number'] ?: $payment->invoice_number,
                 'generic_collector'     =>  $validated['generic_collector']  ?: $payment->generic_collector,
-                'remarks'               =>  $validated['remarks']
+                'remarks'               =>  $validated['remarks'],
+                'edited_date'           =>  now()
             ]
         );
 
@@ -204,6 +208,7 @@ class PaymentController
             [
                 'voided_by'     =>  Auth::id(),
                 'is_void'       =>  true,
+                'void_date'     =>  now(),
                 'reasonToVoid'  =>  $validated['reason']
             ]
         );
