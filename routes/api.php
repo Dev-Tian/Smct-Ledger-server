@@ -4,7 +4,6 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\LogController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PaymentController;

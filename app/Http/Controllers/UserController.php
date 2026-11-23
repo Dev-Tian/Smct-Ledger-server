@@ -207,9 +207,7 @@ class UserController extends Controller
                     'message'       =>  'User updated successfully'
                 ]
             );
-
         });
-
     }
 
     /**

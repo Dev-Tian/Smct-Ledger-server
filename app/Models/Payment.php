@@ -45,7 +45,6 @@ class Payment extends Model
                     [
                         'document_number',
                         'or_number',
-                        'customer_name',
                         'invoice_number',
                     ], 'LIKE', "%{$term}%"
                 )
